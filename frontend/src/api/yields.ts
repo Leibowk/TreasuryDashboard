@@ -7,6 +7,7 @@ export interface YieldPoint {
 
 export interface YieldCurveResponse {
   data: YieldPoint[];
+  display_date: string;
 }
 
 export async function fetchYieldCurve(date: string): Promise<YieldCurveResponse> {
