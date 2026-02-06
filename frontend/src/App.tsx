@@ -10,18 +10,26 @@ function today(): string {
   return formatDate(new Date());
 }
 
+function formatDisplayDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-");
+  return `${m}/${d}/${y}`;
+}
+
 export default function App() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [data, setData] = useState<YieldPoint[] | null>(null);
+  const [displayDate, setDisplayDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadYields = useCallback(async (date: string) => {
     setLoading(true);
     setError(null);
+    setDisplayDate(null);
     try {
       const res = await fetchYieldCurve(date);
       setData(res.data);
+      setDisplayDate(res.display_date);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load yield curve");
       setData(null);
@@ -41,7 +49,7 @@ export default function App() {
           Treasury Yields
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Yield curve by term. Select a date to refresh (data is currently simulated).
+          Yield curve by term. Select a date to refresh.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -80,6 +88,13 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {!loading && displayDate && displayDate !== selectedDate && (
+          <p className="mt-6 text-center text-sm text-amber-700" role="status">
+            Data for the selected date has not been released yet. Currently
+            displaying {formatDisplayDate(displayDate)} data.
+          </p>
+        )}
       </main>
     </div>
   );

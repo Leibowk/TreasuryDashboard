@@ -13,10 +13,10 @@ router = APIRouter(prefix="/api/yields", tags=["Yields"])
     "",
     response_model=YieldCurveResponse,
     summary="Get yield curve",
-    description="Returns treasury yield curve data. Currently returns fake data regardless of the date parameter.",
+    description="Returns treasury yield curve data from FRED for the given date.",
 )
 async def get_yields(
     _date: date | None = Depends(get_yield_date),
 ) -> YieldCurveResponse:
-    """Return yield curve (fake data; date ignored)."""
-    return yields_service.get_fake_yield_curve()
+    """Return yield curve from FRED for the requested date."""
+    return await yields_service.get_yield_curve(_date)

@@ -15,3 +15,7 @@ class YieldCurveResponse(BaseModel):
     """Response for the yield curve endpoint."""
 
     data: list[YieldPoint] = Field(..., description="Ordered list of term/rate points")
+    display_date: str = Field(
+        ...,
+        description="Date the data is from (YYYY-MM-DD); may differ from requested date when data not yet released",
+    )

@@ -46,7 +46,18 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The **Treasury Yields** page is the default view: it shows a yield curve chart and a date selector. The backend currently returns fake data regardless of the selected date.
+Open `http://localhost:5173`. The **Treasury Yields** page is the default view: it shows a yield curve chart and a date selector. The backend returns real data from FRED for the selected date.
+
+### Running Tests
+
+From the project root:
+
+```bash
+cd backend
+pytest tests/ -v
+```
+
+Tests mock the FRED API; a real API key is not needed for assertions. `APP_FRED_API_KEY` is still required at import time because the app loads it from the environment.
 
 ### References
 

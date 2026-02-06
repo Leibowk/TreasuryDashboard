@@ -1,7 +1,10 @@
 @url = https://api.stlouisfed.org/fred/series/observations
 
-@key = 
+### Backend: Get yield curve (uses FRED data)
+@backendUrl = http://localhost:8000
+GET {{backendUrl}}/api/yields?date=2025-02-05
+Accept: application/json
 
-### 1-Month Treasury
-GET {{url}}?series_id=DGS1MO&api_key={{key}}&file_type=json&observation_start=2026-02-06&observation_end=2026-02-06
+### FRED API: 1-Month Treasury
+GET {{url}}?series_id=DGS1MO&api_key={{key}}&file_type=json&observation_start=2025-02-05&observation_end=2025-02-05
 Accept: application/json
