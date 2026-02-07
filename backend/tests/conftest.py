@@ -21,7 +21,7 @@ mock_fred_observations = [{"date": "2025-02-05", "value": "4.43"}]
 
 
 def pytest_configure(config):
-    """Ensure APP_FRED_API_KEY is set and enable pytest-asyncio auto mode."""
+    """Ensure APP_FRED_API_KEY is set and register pytest-asyncio marker (asyncio_mode is in pytest.ini)."""
     os.environ.setdefault("APP_FRED_API_KEY", "test_key")
     config.addinivalue_line("markers", "asyncio: mark test as async (pytest-asyncio)")
 

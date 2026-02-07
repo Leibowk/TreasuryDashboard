@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/yields", tags=["Yields"])
     description="Returns treasury yield curve data from FRED for the given date.",
 )
 async def get_yields(
-    _date: date | None = Depends(get_yield_date),
+    _date: date = Depends(get_yield_date),
 ) -> YieldCurveResponse:
-    """Return yield curve from FRED for the requested date."""
+    """Return yield curve from FRED for the requested date (or fallback when no data for that date)."""
     return await yields_service.get_yield_curve(_date)

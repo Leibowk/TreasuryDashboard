@@ -142,19 +142,17 @@ async def _get_fallback_response() -> YieldCurveResponse:
     return await _compute_fallback_response()
 
 
-async def get_yield_curve(target_date: date | None = None) -> YieldCurveResponse:
+async def get_yield_curve(target_date: date) -> YieldCurveResponse:
     """
     Fetch treasury yield curve. Returns target_date's data when available; otherwise fallback.
     Future dates or today-before-release (before 4:15 PM CST) return fallback without querying.
     """
     today = date.today()
-    date_to_try = target_date if target_date is not None else today
-
-    if (target_date is not None and target_date > today) or (date_to_try == today and _is_before_release_cst()):
+    if target_date > today or (target_date == today and _is_before_release_cst()):
         return await _get_fallback_response()
 
-    data = await _fetch_curve_for_date(date_to_try)
+    data = await _fetch_curve_for_date(target_date)
     if data is not None:
-        return YieldCurveResponse(data=data, display_date=date_to_try.isoformat())
+        return YieldCurveResponse(data=data, display_date=target_date.isoformat())
 
     return await _get_fallback_response()

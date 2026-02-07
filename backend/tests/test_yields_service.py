@@ -14,14 +14,14 @@ from src.yields import service as yields_service
 @patch("src.yields.service.fred_service.fetch_observations")
 @patch("src.yields.service.date")
 async def test_get_yield_curve_success(mock_date_module, mock_fetch, mock_before_release):
-    """get_yield_curve returns YieldCurveResponse for requested date (today when None)."""
+    """get_yield_curve returns YieldCurveResponse for requested date."""
     yields_service._fallback_cache = None
     mock_before_release.return_value = False
     today = date(2025, 2, 5)
     mock_date_module.today.return_value = today
     mock_fetch.return_value = [{"date": "2025-02-05", "value": "4.35"}]
 
-    result = await yields_service.get_yield_curve(None)
+    result = await yields_service.get_yield_curve(today)
 
     assert isinstance(result, YieldCurveResponse)
     assert len(result.data) == 8
@@ -45,7 +45,7 @@ async def test_get_yield_curve_skips_missing_value(
     mock_fetch.return_value = [{"date": "2025-02-05", "value": "."}]
 
     with pytest.raises(HTTPException) as exc_info:
-        await yields_service.get_yield_curve(None)
+        await yields_service.get_yield_curve(date(2025, 2, 5))
 
     assert exc_info.value.status_code == 404
 
@@ -65,7 +65,7 @@ async def test_get_yield_curve_404_when_no_data(
     mock_fetch.return_value = []
 
     with pytest.raises(HTTPException) as exc_info:
-        await yields_service.get_yield_curve(None)
+        await yields_service.get_yield_curve(date(2025, 2, 5))
 
     assert exc_info.value.status_code == 404
     assert "No FRED data" in exc_info.value.detail
@@ -89,7 +89,7 @@ async def test_get_yield_curve_fallback_to_yesterday(
         [] if obs_date == today else [{"date": "2025-02-06", "value": "4.42"}]
     )
 
-    result = await yields_service.get_yield_curve(None)
+    result = await yields_service.get_yield_curve(today)
 
     assert result.display_date == "2025-02-06"
     assert len(result.data) == 8
@@ -100,14 +100,14 @@ async def test_get_yield_curve_fallback_to_yesterday(
 @patch("src.yields.service.fred_service.fetch_observations")
 @patch("src.yields.service.date")
 async def test_get_yield_curve_default_date(mock_date_module, mock_fetch, mock_before_release):
-    """get_yield_curve with None uses today as date_to_try and returns its data."""
+    """get_yield_curve with today as target_date returns that date's data."""
     yields_service._fallback_cache = None
     mock_before_release.return_value = False
     today = date(2025, 2, 6)
     mock_date_module.today.return_value = today
     mock_fetch.return_value = [{"date": "2025-02-06", "value": "4.40"}]
 
-    result = await yields_service.get_yield_curve(None)
+    result = await yields_service.get_yield_curve(today)
 
     assert result.display_date == "2025-02-06"
     mock_fetch.assert_called()

@@ -6,7 +6,7 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from src.config import settings
 
-# Sync engine (for Alembic migrations and table creation in tests/lifespan)
+# Sync engine for Base.metadata.create_all (app lifespan and tests). Alembic uses its own engine in env.py.
 connect_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):
     connect_args["check_same_thread"] = False
