@@ -9,7 +9,7 @@ The interface is **professional and fintech-focused**: it prioritizes clarity, s
 | Layer       | Technology                          |
 |------------|--------------------------------------|
 | **Backend** | Python 3.11+, FastAPI               |
-| **Database** | PostgreSQL                          |
+| **Database** | SQLite (default);                  |
 | **ORM**     | SQLAlchemy 2.0 (Alembic for migrations) |
 | **Validation** | Pydantic v2                      |
 | **Frontend** | React, Vite, Tailwind CSS          |
@@ -31,10 +31,12 @@ python -m venv .venv
 .venv\Scripts\activate   # Windows
 # source .venv/bin/activate   # macOS/Linux
 pip install -r requirements.txt
+# Optional: run migrations (tables are also created on startup)
+alembic upgrade head
 uvicorn src.main:app --reload
 ```
 
-API runs at `http://localhost:8000`. OpenAPI docs: `http://localhost:8000/docs`.
+API runs at `http://localhost:8000`. OpenAPI docs: `http://localhost:8000/docs`. Orders (create order, order history) require the backend and database to be running; the app uses SQLite by default (file `treasury.db` in the backend directory). To use PostgreSQL, set `APP_DATABASE_URL` in `.env` (see `backend/.env.example`).
 
 ### Frontend
 
@@ -46,7 +48,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The **Treasury Yields** page is the default view: it shows a yield curve chart and a date selector. The backend returns real data from FRED for the selected date.
+Open `http://localhost:5173`. The **Treasury Yields** page is the default view: it shows a yield curve chart and a date selector. Below that, **Order History** lists all orders and **Create Order** lets you submit an order for a term and amount (today’s yield is fetched from the backend). Pending orders can be set to Settled or Failed. The backend returns real yield data from FRED for the selected date.
 
 ### Running Tests
 
@@ -57,7 +59,7 @@ cd backend
 pytest tests/ -v
 ```
 
-Tests mock the FRED API; a real API key is not needed for assertions. `APP_FRED_API_KEY` is still required at import time because the app loads it from the environment.
+Tests mock the FRED API; a real API key is not needed for assertions. `APP_FRED_API_KEY` is still required at import time because the app loads it from the environment. Order API tests use a temporary SQLite file (`test_treasury.db`); no separate database setup is required.
 
 ### References
 

@@ -31,7 +31,7 @@ async def fetch_observations(series_id: str, obs_date: date) -> list[dict]:
         f"&observation_start={date_str}"
         f"&observation_end={date_str}"
     )
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.get(url)
         response.raise_for_status()
     data = response.json()

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     FRED_API_KEY: str
     FRED_BASE_URL: str = "https://api.stlouisfed.org"
+    DATABASE_URL: str = "sqlite:///./treasury.db"
 
     model_config = {
         "env_prefix": "APP_",

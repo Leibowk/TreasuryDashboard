@@ -11,11 +11,14 @@ from src.yields import service as yields_service
 
 
 @patch("src.yields.service.fred_service.fetch_observations")
-async def test_get_yield_curve_success(mock_fetch):
-    """get_yield_curve returns YieldCurveResponse with 8 points in TERM_LABELS order."""
+@patch("src.yields.service.date")
+async def test_get_yield_curve_success(mock_date_module, mock_fetch):
+    """get_yield_curve returns YieldCurveResponse for today (today then yesterday)."""
+    today = date(2025, 2, 5)
+    mock_date_module.today.return_value = today
     mock_fetch.return_value = [{"date": "2025-02-05", "value": "4.35"}]
 
-    result = await yields_service.get_yield_curve(date(2025, 2, 5))
+    result = await yields_service.get_yield_curve(None)
 
     assert isinstance(result, YieldCurveResponse)
     assert len(result.data) == 8
@@ -25,32 +28,56 @@ async def test_get_yield_curve_success(mock_fetch):
 
 
 @patch("src.yields.service.fred_service.fetch_observations")
-async def test_get_yield_curve_skips_missing_value(mock_fetch):
-    """get_yield_curve skips terms with '.' value; raises 404 when no valid data."""
+@patch("src.yields.service.date")
+async def test_get_yield_curve_skips_missing_value(mock_date_module, mock_fetch):
+    """get_yield_curve skips terms with '.' value; raises 404 when no valid data for today or yesterday."""
+    mock_date_module.today.return_value = date(2025, 2, 5)
     mock_fetch.return_value = [{"date": "2025-02-05", "value": "."}]
 
     with pytest.raises(HTTPException) as exc_info:
-        await yields_service.get_yield_curve(date(2025, 2, 5))
+        await yields_service.get_yield_curve(None)
 
     assert exc_info.value.status_code == 404
 
 
 @patch("src.yields.service.fred_service.fetch_observations")
-async def test_get_yield_curve_404_when_no_data(mock_fetch):
-    """get_yield_curve raises HTTPException 404 when fred returns [] for all."""
+@patch("src.yields.service.date")
+async def test_get_yield_curve_404_when_no_data(mock_date_module, mock_fetch):
+    """get_yield_curve raises HTTPException 404 when no data for today or yesterday."""
+    mock_date_module.today.return_value = date(2025, 2, 5)
     mock_fetch.return_value = []
 
     with pytest.raises(HTTPException) as exc_info:
-        await yields_service.get_yield_curve(date(2025, 2, 5))
+        await yields_service.get_yield_curve(None)
 
     assert exc_info.value.status_code == 404
     assert "No FRED data" in exc_info.value.detail
+    assert "today" in exc_info.value.detail.lower() and "yesterday" in exc_info.value.detail.lower()
+
+
+@patch("src.yields.service.fred_service.fetch_observations")
+@patch("src.yields.service.date")
+async def test_get_yield_curve_fallback_to_yesterday(mock_date_module, mock_fetch):
+    """When today has no data, get_yield_curve returns yesterday's data."""
+    today = date(2025, 2, 7)
+    yesterday = date(2025, 2, 6)
+    mock_date_module.today.return_value = today
+    # Today returns no observations; yesterday returns data
+    mock_fetch.side_effect = lambda series_id, obs_date: (
+        [] if obs_date == today else [{"date": "2025-02-06", "value": "4.42"}]
+    )
+
+    result = await yields_service.get_yield_curve(None)
+
+    assert result.display_date == "2025-02-06"
+    assert len(result.data) == 8
+    assert all(p.rate == 4.42 for p in result.data)
 
 
 @patch("src.yields.service.fred_service.fetch_observations")
 @patch("src.yields.service.date")
 async def test_get_yield_curve_default_date(mock_date_module, mock_fetch):
-    """get_yield_curve uses date.today() when target_date is None."""
+    """get_yield_curve tries today first, then yesterday; returns first with data."""
     today = date(2025, 2, 6)
     mock_date_module.today.return_value = today
     mock_fetch.return_value = [{"date": "2025-02-06", "value": "4.40"}]
@@ -59,6 +86,6 @@ async def test_get_yield_curve_default_date(mock_date_module, mock_fetch):
 
     assert result.display_date == "2025-02-06"
     mock_fetch.assert_called()
-    # Verify we passed today's date (from date.today())
+    # First fetch is for today
     call_args = mock_fetch.call_args_list[0]
     assert call_args[0][1] == today  # second positional arg is obs_date
