@@ -8,24 +8,29 @@ os.environ.setdefault("APP_FRED_API_KEY", "test_key")
 os.environ.setdefault("APP_DATABASE_URL", "sqlite:///./test_treasury.db")
 
 import pytest
-from starlette.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from src.db import Base, engine
 from src.main import app
 
-# Ensure tables exist before any test runs (TestClient may not run lifespan in time)
+# Ensure tables exist before any test runs
 Base.metadata.create_all(bind=engine)
 
 # Sample FRED observations for reuse in tests
 mock_fred_observations = [{"date": "2025-02-05", "value": "4.43"}]
 
 
-def pytest_configure():
-    """Ensure APP_FRED_API_KEY is set before any app code runs."""
+def pytest_configure(config):
+    """Ensure APP_FRED_API_KEY is set and register pytest-asyncio marker (asyncio_mode is in pytest.ini)."""
     os.environ.setdefault("APP_FRED_API_KEY", "test_key")
+    config.addinivalue_line("markers", "asyncio: mark test as async (pytest-asyncio)")
 
 
 @pytest.fixture
-def client() -> TestClient:
-    """Return a test client for the FastAPI app."""
-    return TestClient(app)
+async def client():
+    """Return an async test client for the FastAPI app."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        yield ac
