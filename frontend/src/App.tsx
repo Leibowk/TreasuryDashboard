@@ -9,9 +9,14 @@ import { fetchYieldCurve, type YieldPoint } from "./api/yields";
 import { YieldCurveChart } from "./components/YieldCurveChart";
 
 const TERM_OPTIONS = ["1M", "3M", "6M", "1Y", "2Y", "5Y", "10Y", "30Y"];
+const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100];
 
+/** Format date as YYYY-MM-DD in the user's local timezone (not UTC). */
 function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function today(): string {
@@ -31,6 +36,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [ordersOffset, setOrdersOffset] = useState(0);
+  const [ordersPageSize, setOrdersPageSize] = useState(10);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -60,25 +68,43 @@ export default function App() {
     loadYields(selectedDate);
   }, [selectedDate, loadYields]);
 
-  const loadOrders = useCallback(async () => {
-    setOrdersLoading(true);
-    setOrdersError(null);
-    try {
-      const res = await fetchOrders();
-      setOrders(res.orders);
-    } catch (e) {
-      setOrdersError(
-        e instanceof Error ? e.message : "Failed to load orders"
-      );
-      setOrders([]);
-    } finally {
-      setOrdersLoading(false);
-    }
-  }, []);
+  const loadOrders = useCallback(
+    async (offset: number = ordersOffset, limit: number = ordersPageSize) => {
+      setOrdersLoading(true);
+      setOrdersError(null);
+      try {
+        const res = await fetchOrders(offset, limit);
+        setOrders(res.orders);
+        setOrdersTotal(res.total);
+      } catch (e) {
+        setOrdersError(
+          e instanceof Error ? e.message : "Failed to load orders"
+        );
+        setOrders([]);
+        setOrdersTotal(0);
+      } finally {
+        setOrdersLoading(false);
+      }
+    },
+    [ordersOffset, ordersPageSize]
+  );
 
   useEffect(() => {
-    loadOrders();
-  }, [loadOrders]);
+    loadOrders(ordersOffset, ordersPageSize);
+  }, [ordersOffset, ordersPageSize, loadOrders]);
+
+  const handlePageSizeChange = (newSize: number) => {
+    setOrdersPageSize(newSize);
+    setOrdersOffset(0);
+  };
+
+  const goToPrevPage = () => {
+    setOrdersOffset((o) => Math.max(0, o - ordersPageSize));
+  };
+
+  const goToNextPage = () => {
+    setOrdersOffset((o) => o + ordersPageSize);
+  };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,6 +292,25 @@ export default function App() {
             </div>
           )}
 
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <label htmlFor="orders-page-size" className="text-sm font-medium text-gray-700">
+              Show
+            </label>
+            <select
+              id="orders-page-size"
+              value={ordersPageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-600">per page</span>
+          </div>
+
           <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             {ordersError && (
               <div
@@ -378,6 +423,32 @@ export default function App() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {!ordersLoading && !ordersError && ordersTotal > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+                <span className="text-gray-600">
+                  Showing {ordersOffset + 1}–
+                  {Math.min(ordersOffset + ordersPageSize, ordersTotal)} of {ordersTotal}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={ordersOffset === 0}
+                    onClick={goToPrevPage}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-gray-700 hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    disabled={ordersOffset + ordersPageSize >= ordersTotal}
+                    onClick={goToNextPage}
+                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium text-gray-700 hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
           </div>

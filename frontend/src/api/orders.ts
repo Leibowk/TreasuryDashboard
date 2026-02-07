@@ -12,10 +12,18 @@ export interface Order {
 
 export interface OrderListResponse {
   orders: Order[];
+  total: number;
 }
 
-export async function fetchOrders(): Promise<OrderListResponse> {
-  const res = await fetch(`${API_BASE}/api/orders`);
+export async function fetchOrders(
+  offset: number = 0,
+  limit: number = 10
+): Promise<OrderListResponse> {
+  const params = new URLSearchParams({
+    offset: String(offset),
+    limit: String(limit),
+  });
+  const res = await fetch(`${API_BASE}/api/orders?${params}`);
   if (!res.ok) {
     throw new Error(`Failed to load orders: ${res.status} ${res.statusText}`);
   }

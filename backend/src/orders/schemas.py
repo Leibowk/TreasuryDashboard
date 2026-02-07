@@ -35,6 +35,7 @@ class OrderResponse(BaseModel):
 
 
 class OrderListResponse(BaseModel):
-    """Response for GET /api/orders."""
+    """Response for GET /api/orders (paginated)."""
 
     orders: list[OrderResponse]
+    total: int = Field(..., description="Total number of orders")

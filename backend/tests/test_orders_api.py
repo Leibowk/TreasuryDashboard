@@ -22,7 +22,7 @@ def test_get_orders_empty_200(client):
     _clear_orders()
     response = client.get("/api/orders")
     assert response.status_code == 200
-    assert response.json() == {"orders": []}
+    assert response.json() == {"orders": [], "total": 0}
 
 
 def test_post_order_201_and_list(client):
@@ -57,7 +57,9 @@ def test_post_order_201_and_list(client):
 
     list_resp = client.get("/api/orders")
     assert list_resp.status_code == 200
-    orders = list_resp.json()["orders"]
+    data = list_resp.json()
+    assert data["total"] == 1
+    orders = data["orders"]
     assert len(orders) == 1
     assert orders[0]["id"] == body["id"]
     assert orders[0]["status"] == "Pending"

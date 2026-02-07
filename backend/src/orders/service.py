@@ -3,7 +3,7 @@
 from datetime import date
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.orders.models import Order
@@ -11,11 +11,19 @@ from src.orders.schemas import OrderCreate, OrderUpdate, OrderResponse
 from src.yields import service as yields_service
 
 
-async def list_orders(db: AsyncSession) -> list[OrderResponse]:
-    """Return all orders, newest first."""
-    result = await db.execute(select(Order).order_by(Order.created_at.desc()))
+async def list_orders(
+    db: AsyncSession,
+    offset: int = 0,
+    limit: int = 10,
+) -> tuple[list[OrderResponse], int]:
+    """Return orders newest first with pagination; returns (orders, total)."""
+    count_result = await db.execute(select(func.count()).select_from(Order))
+    total = count_result.scalar() or 0
+    result = await db.execute(
+        select(Order).order_by(Order.created_at.desc()).offset(offset).limit(limit)
+    )
     orders = result.scalars().all()
-    return [_order_to_response(o) for o in orders]
+    return [_order_to_response(o) for o in orders], total
 
 
 async def create_order(db: AsyncSession, body: OrderCreate) -> OrderResponse:

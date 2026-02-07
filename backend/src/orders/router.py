@@ -1,6 +1,6 @@
 """Orders API routes."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db import get_db
@@ -15,12 +15,16 @@ router = APIRouter(prefix="/api", tags=["Orders"])
     "/orders",
     response_model=OrderListResponse,
     summary="List orders",
-    description="Returns all orders, newest first.",
+    description="Returns orders newest first with pagination.",
 )
-async def get_orders(db: AsyncSession = Depends(get_db)) -> OrderListResponse:
-    """Return all orders."""
-    orders = await orders_service.list_orders(db)
-    return OrderListResponse(orders=orders)
+async def get_orders(
+    db: AsyncSession = Depends(get_db),
+    offset: int = Query(0, ge=0, description="Number of orders to skip"),
+    limit: int = Query(10, ge=1, description="Max orders to return"),
+) -> OrderListResponse:
+    """Return orders with optional offset and limit (default limit 10)."""
+    orders, total = await orders_service.list_orders(db, offset=offset, limit=limit)
+    return OrderListResponse(orders=orders, total=total)
 
 
 @router.post(
