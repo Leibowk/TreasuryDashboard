@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createOrder,
   fetchOrders,
@@ -47,6 +47,7 @@ export default function App() {
   const [createSubmitting, setCreateSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const scrollRestoreRef = useRef<number | null>(null);
 
   const loadYields = useCallback(async (date: string) => {
     setLoading(true);
@@ -72,6 +73,10 @@ export default function App() {
     async (offset: number = ordersOffset, limit: number = ordersPageSize) => {
       setOrdersLoading(true);
       setOrdersError(null);
+      const savedY = scrollRestoreRef.current;
+      if (savedY !== null) {
+        requestAnimationFrame(() => window.scrollTo(0, savedY));
+      }
       try {
         const res = await fetchOrders(offset, limit);
         setOrders(res.orders);
@@ -93,17 +98,32 @@ export default function App() {
     loadOrders(ordersOffset, ordersPageSize);
   }, [ordersOffset, ordersPageSize, loadOrders]);
 
+  useEffect(() => {
+    if (!ordersLoading && scrollRestoreRef.current !== null) {
+      const y = scrollRestoreRef.current;
+      scrollRestoreRef.current = null;
+      requestAnimationFrame(() => window.scrollTo(0, y));
+    }
+  }, [ordersLoading]);
+
+  const saveScrollAnd = (fn: () => void) => {
+    scrollRestoreRef.current = window.scrollY;
+    fn();
+  };
+
   const handlePageSizeChange = (newSize: number) => {
-    setOrdersPageSize(newSize);
-    setOrdersOffset(0);
+    saveScrollAnd(() => {
+      setOrdersPageSize(newSize);
+      setOrdersOffset(0);
+    });
   };
 
   const goToPrevPage = () => {
-    setOrdersOffset((o) => Math.max(0, o - ordersPageSize));
+    saveScrollAnd(() => setOrdersOffset((o) => Math.max(0, o - ordersPageSize)));
   };
 
   const goToNextPage = () => {
-    setOrdersOffset((o) => o + ordersPageSize);
+    saveScrollAnd(() => setOrdersOffset((o) => o + ordersPageSize));
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -120,6 +140,7 @@ export default function App() {
       setCreateOpen(false);
       setCreateAmount("");
       setCreateTerm("5Y");
+      scrollRestoreRef.current = window.scrollY;
       loadOrders();
     } catch (e) {
       setCreateError(
@@ -131,6 +152,7 @@ export default function App() {
   };
 
   const handleStatusUpdate = async (orderId: number, status: "Settled" | "Failed") => {
+    scrollRestoreRef.current = window.scrollY;
     setActionLoadingId(orderId);
     try {
       await updateOrderStatus(orderId, status);
@@ -320,45 +342,48 @@ export default function App() {
                 {ordersError}
               </div>
             )}
-            {ordersLoading && (
-              <div className="flex items-center justify-center py-12 text-gray-500">
-                Loading orders…
-              </div>
-            )}
-            {!ordersLoading && !ordersError && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+            <div
+              className={`overflow-x-auto transition-opacity duration-150 ${ordersLoading ? "opacity-70" : "opacity-100"}`}
+              aria-busy={ordersLoading}
+            >
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Term
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Amount $
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Yield %
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {ordersLoading && orders.length === 0 ? (
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Date
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Term
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Amount $
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Yield %
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Action
-                      </th>
+                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                        Loading orders…
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {orders.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
-                          No orders yet. Create one to get started.
-                        </td>
-                      </tr>
-                    ) : (
-                      orders.map((order) => (
+                  ) : orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
+                        No orders yet. Create one to get started.
+                      </td>
+                    </tr>
+                  ) : (
+                    orders.map((order) => (
                         <tr key={order.id}>
                           <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
                             {formatOrderDate(order.date)}
@@ -420,12 +445,11 @@ export default function App() {
                           </td>
                         </tr>
                       ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {!ordersLoading && !ordersError && ordersTotal > 0 && (
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {ordersTotal > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm">
                 <span className="text-gray-600">
                   Showing {ordersOffset + 1}–
