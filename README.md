@@ -19,6 +19,7 @@ The interface is **professional and fintech-focused**: it prioritizes clarity, s
 - **Frontend** (React + Vite) calls the backend REST API for yield curve data and orders.
 - **Backend** (FastAPI) exposes `/api/yields` and `/api/orders` (and `/api/order` for create). It uses **SQLAlchemy** (async) for persistence and the **FRED API** for treasury rates.
 - **Yields**: The backend fetches series from FRED, maps terms to series IDs, and caches a **fallback date** (last weekday with data, 30‑min TTL) used when the requested date has no data or for future dates.
+- **Order status (Settled / Failed):** In a real flow, status changes would typically be driven by a clearing house or settlement system and then reflected via APIs. Here we simulate that with a **button on the frontend** that calls `PATCH /api/orders/{id}` to update status. This keeps the UI simple and demonstrates the transition (Pending → Settled or Failed) without integrating with an external clearing house.
 
 ```
 [Browser] → [Vite dev / static] → [FastAPI] → [SQLAlchemy (SQLite/Postgres)] 
