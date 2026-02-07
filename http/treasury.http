@@ -1,4 +1,5 @@
 @url = https://api.stlouisfed.org/fred/series/observations
+@key = c7c73583947827f3f7313578c1e82a21
 
 ### Backend: Get yield curve (uses FRED data)
 @backendUrl = http://localhost:8000
