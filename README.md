@@ -10,9 +10,27 @@ The interface is **professional and fintech-focused**: it prioritizes clarity, s
 |------------|--------------------------------------|
 | **Backend** | Python 3.11+, FastAPI               |
 | **Database** | SQLite (default);                  |
-| **ORM**     | SQLAlchemy 2.0 (Alembic for migrations) |
+| **ORM**     | SQLAlchemy 2.0 (Alembic for migrations) | 
 | **Validation** | Pydantic v2                      |
 | **Frontend** | React, Vite, Tailwind CSS          |
+
+## Architecture
+
+- **Frontend** (React + Vite) calls the backend REST API for yield curve data and orders.
+- **Backend** (FastAPI) exposes `/api/yields` and `/api/orders` (and `/api/order` for create). It uses **SQLAlchemy** (async) for persistence and the **FRED API** for treasury rates.
+- **Yields**: The backend fetches series from FRED, maps terms to series IDs, and caches a **fallback date** (last weekday with data, 30‑min TTL) used when the requested date has no data or for future dates.
+
+```
+[Browser] → [Vite dev / static] → [FastAPI] → [SQLAlchemy (SQLite/Postgres)] 
+                                → [FRED API] (with fallback cache)
+```
+
+## Design decisions
+
+- **Economic data cache:** The backend caches the last weekday with FRED data (30 min TTL). That fallback is used when the requested date has no data, for future dates, and when “today” is before 4:15 PM CST (data not yet released). Weekday-only walkback and skipping “today” before release reduce FRED calls and match release semantics.
+- **Single global config:** FRED, CORS, DB, and term-to-series mapping live in one config module for simplicity; config can be split by domain later if the app grows.
+- **Async backend, async test client:** The app uses async route handlers and an async DB session. Tests use `httpx.AsyncClient` with `ASGITransport` so the test client runs on the same event loop as the app.
+- **Orders:** A single service layer with an injected async session; no Repository or Unit of Work. This is intentional for the current single-entity scope; a Repository could be added if the domain grows.
 
 ## Getting Started
 
@@ -65,7 +83,7 @@ Open `http://localhost:5173`. The **Treasury Yields** page is the default view: 
 
 ### Running Tests
 
-From the project root:
+**Backend** (from project root):
 
 ```bash
 cd backend
@@ -74,10 +92,22 @@ pytest tests/ -v
 
 Tests mock the FRED API; a real API key is not needed for assertions. `APP_FRED_API_KEY` is still required at import time because the app loads it from the environment. Order API tests use a temporary SQLite file (`test_treasury.db`); no separate database setup is required.
 
+**Frontend** (from project root):
+
+```bash
+cd frontend
+npm run test
+```
+
+Runs Vitest with React Testing Library; API tests mock `fetch` for `api/yields` and `api/orders`. Use `npm run test:run` for a single run (CI).
+
 ### TODO
 
 - **Add authentication** — Protect API and UI with login/session or API keys as appropriate for the environment.
-- **Adjust caching as necessary** — The backend computes a **fallback date** (the last calendar day with economic data from FRED), caches it with a 30-minute TTL, and uses that when there is no data for the requested date (e.g. future dates) or when today/yesterday have no data. For **orders** and for **past economic data** (e.g. past weekends or holidays), a more specific rule may be better—for example, use the **previous Friday** when the requested date falls on a weekend, or a proper business-day calendar. The current “last day with data” approach is generic; consider aligning with how orders and historical views should reference “as of” dates.
+- **Adjust caching as necessary** — The backend uses a **fallback date** (last weekday with FRED data, 30 min TTL) when the requested date has no data. For orders and historical views, consider a more specific rule (e.g. previous Friday for weekends, or a proper business-day calendar).
+- **Optional:** Split config by domain (e.g. yields vs orders) if the app grows.
+- **Optional:** Hide OpenAPI docs in production (`openapi_url=None`).
+- **Optional:** Extract domain exceptions (e.g. `OrderNotFound`, `InvalidOrderState`) for clearer error handling.
 
 ### References
 
