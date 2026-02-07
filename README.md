@@ -21,6 +21,19 @@ The interface is **professional and fintech-focused**: it prioritizes clarity, s
 - **Node.js** (LTS) and npm
 - **Python 3.11+**
 
+### Environment variables
+
+You must provide a `.env` file in the `backend` directory or set the required environment variables before running the backend. Copy `backend/.env.example` to `backend/.env` and fill in the values, or get the variable values from another developer on the project.
+
+Required:
+
+- `APP_FRED_API_KEY` — API key for the FRED (Federal Reserve Economic Data) API; required for yield curve data.
+
+- `APP_DATABASE_URL` — Database URL (default: `sqlite:///./treasury.db`). Set to a PostgreSQL URL if you prefer.
+
+Optional:
+- `APP_CORS_ORIGINS` — Allowed CORS origins (default includes `http://localhost:5173`).
+
 ### Backend
 
 From the project root:
@@ -60,6 +73,11 @@ pytest tests/ -v
 ```
 
 Tests mock the FRED API; a real API key is not needed for assertions. `APP_FRED_API_KEY` is still required at import time because the app loads it from the environment. Order API tests use a temporary SQLite file (`test_treasury.db`); no separate database setup is required.
+
+### TODO
+
+- **Add authentication** — Protect API and UI with login/session or API keys as appropriate for the environment.
+- **Adjust caching as necessary** — The backend computes a **fallback date** (the last calendar day with economic data from FRED), caches it with a 30-minute TTL, and uses that when there is no data for the requested date (e.g. future dates) or when today/yesterday have no data. For **orders** and for **past economic data** (e.g. past weekends or holidays), a more specific rule may be better—for example, use the **previous Friday** when the requested date falls on a weekend, or a proper business-day calendar. The current “last day with data” approach is generic; consider aligning with how orders and historical views should reference “as of” dates.
 
 ### References
 
